@@ -658,14 +658,21 @@ if "`quantiles'"!="" {
 		local q`current_quantile' = `v'
 		local current_quantile = `current_quantile' + 1
 	}
-	local quantiles_opt "(p`q1') p`q1'=`y_vars_r' (p`q2') p`q2'=`y_vars_r'"
-	local quantile_vars p`q1' p`q2'
+	if `num_quantiles' ==1 {
+		local quantiles_opt "(p`q1') p`q1'=`y_vars_r'"
+		local quantile_vars p`q1'
+	}
+	else {
+		local quantiles_opt "(p`q1') p`q1'=`y_vars_r' (p`q2') p`q2'=`y_vars_r'"
+		local quantile_vars p`q1' p`q2'
+	}
+
 }
 
 * If stdevs specified: define macro to pass into gcollapse
 if `stdevs'!=-1 {
 	tempvar sd
-	local quantiles_opt "(sd) `sd' =`y_vars_r'"
+	local quantiles_opt "(sd) sd =`y_vars_r'"
 }
 
 *---------------------------------------------------
@@ -679,6 +686,17 @@ if "`by'"=="" {
 	qui drop if `xq'==.
 	gcollapse (`collapsetype') `y_vars_r' `x_r' `quantiles_opt' `wt', by(`xq') fast
 
+	* collapse cannot assign generated variables to tempvar 
+
+
+		cap confirm variable sd, exact
+			if !_rc{
+				gen `sd' = sd
+			}
+	
+
+
+
 	* Make matrix containing mean x and mean y within each bin for each y var
 	local counter_depvar=0
 	foreach depvar of varlist `y_vars_r' {
@@ -690,7 +708,7 @@ if "`by'"=="" {
 	* If quantiles specified, create a macro
 	if "`quantiles'"!="" {
 		if `c(stata_version)' >= 15.0 local opacity %40
-		local quantile_macro (rarea p`q2' p`q1' `x_r', color(gs12`opacity'))
+		local quantile_macro "(rarea p`q2' p`q1' `x_r', color(gs12`opacity'))"
 	}
 
 	* If stdevs specified
@@ -699,7 +717,7 @@ if "`by'"=="" {
 		tempvar sd_ub sd_lb
 		gen `sd_ub' = `y_vars_r' + `stdevs'*`sd'
 		gen `sd_lb' = `y_vars_r' - `stdevs'*`sd'
-		local quantile_macro (rarea `sd_ub' `sd_lb' `x_r', color(gs12`opacity'))
+		local quantile_macro "(rarea `sd_ub' `sd_lb' `x_r', color(gs12`opacity'))"
 	}
 
 }
